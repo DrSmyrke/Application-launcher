@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "UI/prompt.h"
 
 #include <QDir>
 #include <QFile>
@@ -16,20 +17,24 @@ MainWindow::MainWindow(QWidget *parent) :
 	m_pTimer = new QTimer();
 	m_pManager = new QNetworkAccessManager( this );
 	m_pPorxySettingsWindow = new ProxySettings( this );
+	m_pProfileEditor = new ProfileEditor( this );
 
 	this->setWindowTitle( "App Launcher v" + app::conf.version );
 	this->setWindowIcon( QIcon( "://index.ico" ) );
 
-	ui->addressBox->setText( app::conf.repository );
-	ui->targetBox->setText( app::conf.targetDir );
-	ui->keyBox->setText( app::conf.key );
+//	ui->addressBox->setText( app::conf.repository );
+//	ui->targetBox->setText( app::conf.targetDir );
+//	ui->keyBox->setText( app::conf.key );
 
-	connect( ui->updateB, &QPushButton::clicked, this, &MainWindow::slot_update );
-	connect( ui->addressBox, &QLineEdit::returnPressed, this, &MainWindow::slot_update );
-	connect( m_pTimer, &QTimer::timeout, this, &MainWindow::slot_run );
-	connect( ui->targetSB, &QPushButton::clicked, this, &MainWindow::slot_selectTarget );
-	connect( ui->targetBox, &QLineEdit::returnPressed, this, &MainWindow::slot_selectTarget );
-	connect( ui->proxyEB, &QPushButton::clicked, m_pPorxySettingsWindow, &ProxySettings::exec );
+//	connect( ui->updateB, &QPushButton::clicked, this, &MainWindow::slot_update );
+//	connect( ui->addressBox, &QLineEdit::returnPressed, this, &MainWindow::slot_update );
+//	connect( m_pTimer, &QTimer::timeout, this, &MainWindow::slot_run );
+//	connect( ui->targetSB, &QPushButton::clicked, this, &MainWindow::slot_selectTarget );
+//	connect( ui->targetBox, &QLineEdit::returnPressed, this, &MainWindow::slot_selectTarget );
+
+	connect( ui->actionProxy_settings, &QAction::triggered, m_pPorxySettingsWindow, &ProxySettings::exec );
+	connect( ui->actionCreate_Update_Index, &QAction::triggered, this, &MainWindow::slot_updateIndex );
+	connect( ui->actionNew_profile, &QAction::triggered, this, &MainWindow::slot_newProfile );
 
 	m_pTimer->setInterval( 500 );
 	m_state = State::downloadList;
@@ -117,7 +122,7 @@ void MainWindow::slot_run()
 			}
 			ui->statusL->setText( " " );
 			ui->updateB->setEnabled( true );
-			ui->targetSB->setEnabled( true );
+//			ui->targetSB->setEnabled( true );
 			//TODO: Maybe?
 			//emit close();
 		break;
@@ -132,7 +137,85 @@ void MainWindow::slot_selectTarget()
 	auto target = QFileDialog::getExistingDirectory(this, tr("Target directory"),
 													app::conf.targetDir,
 													QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
-	ui->targetBox->setText( target );
+	//	ui->targetBox->setText( target );
+}
+
+void MainWindow::slot_updateIndex()
+{
+	auto targetDir = QFileDialog::getExistingDirectory(this, tr("Repository directory"),
+													QDir::homePath(),
+													QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+	if( targetDir == "" || !QDir( targetDir ).exists() ){
+		return;
+	}
+
+	QString indexFile = QString( "%1/index.list" ).arg( targetDir );
+
+	Prompt* prompt = new Prompt( "KEY", tr( "Enter key for encrypt data ( optional )" ), this );
+	if( !prompt->exec() ){
+		prompt->deleteLater();
+		return;
+	}
+
+	QByteArray key = prompt->getInput().toUtf8();
+	prompt->deleteLater();
+
+
+	QFile file;
+	file.setFileName( indexFile );
+	if( file.open( QIODevice::WriteOnly ) ){
+		ui->progressBar->setValue( 0 );
+		auto list = mf::listDir( targetDir );
+		int size = list.size();
+		uint32_t i = 0;
+		QByteArray ba;
+
+		for( auto targetFile:list ){
+			QString baseFile = targetFile;
+			baseFile.replace( targetDir, "" );
+
+			if( baseFile == "/index.list" ){
+				i++;
+				continue;
+			}
+
+			qint64 fileSize = QFileInfo( targetFile ).size();
+			auto hash = mf::fileChecksum_MD5( targetFile );
+
+			ba.append( hash );
+			ba.append( "\t" );
+			ba.append( QString::number( fileSize ).toUtf8() );
+			if( fileSize < 1000 ) ba.append( "\t" );
+			if( fileSize < 100000 ) ba.append( "\t" );
+			ba.append( "\t" );
+			ba.append( baseFile.toUtf8() );
+			ba.append( "\n" );
+
+			if( i == 0 ){
+				i++;
+				continue;
+			}
+
+			int prz = (float)i / ( (float)size / 100.0 );
+			ui->progressBar->setValue( prz );
+
+			i++;
+		}
+
+		//encrypt data
+		file.write( encryptData( ba, key ) );
+
+		file.close();
+		ui->progressBar->setValue( 100 );
+	}
+}
+
+void MainWindow::slot_newProfile()
+{
+	if( m_pProfileEditor->exec() ){
+
+	}
 }
 
 void MainWindow::startDownload(const QUrl &url, const QString &fileName)
@@ -150,6 +233,13 @@ void MainWindow::startDownload(const QUrl &url, const QString &fileName)
 	connect( m_pReply, &QNetworkReply::downloadProgress, this, &MainWindow::slot_downloadProgress );
 	connect( m_pReply, &QNetworkReply::readyRead, this, &MainWindow::slot_readyRead );
 	connect( m_pReply, &QNetworkReply::finished, this, &MainWindow::slot_finished );
+}
+
+QByteArray MainWindow::encryptData(const QByteArray &data, const QByteArray &key)
+{
+	QByteArray ba = data.toBase64();
+	mf::XOR( ba, key );
+	return ba;
 }
 
 void MainWindow::decryptList()
@@ -258,12 +348,12 @@ void MainWindow::addToUpdate(const QString &localFile, const QString &remoteFile
 
 void MainWindow::slot_update()
 {
-	auto repo = ui->addressBox->text();
-	auto target = ui->targetBox->text();
-	auto key = ui->keyBox->text();
-	if( repo.isEmpty() || target.isEmpty() || key.isEmpty() ){
-		return;
-	}
+//	auto repo = ui->addressBox->text();
+//	auto target = ui->targetBox->text();
+//	auto key = ui->keyBox->text();
+//	if( repo.isEmpty() || target.isEmpty() || key.isEmpty() ){
+//		return;
+//	}
 
 	if( !QDir( app::conf.targetDir ).exists() ){
 		QDir().mkpath( app::conf.targetDir );
@@ -273,9 +363,9 @@ void MainWindow::slot_update()
 		return;
 	}
 
-	app::conf.repository = repo;
-	app::conf.targetDir = target;
-	app::conf.key = key;
+//	app::conf.repository = repo;
+//	app::conf.targetDir = target;
+//	app::conf.key = key;
 
 	auto tmp = app::conf.repository.split( " " );
 	if( tmp.size() != 2 ){
@@ -286,7 +376,7 @@ void MainWindow::slot_update()
 	m_repoListFile = QString( "%1/%2.list" ).arg( m_repoURL ).arg( tmp[1] );
 	m_state = State::downloadList;
 	ui->updateB->setEnabled( false );
-	ui->targetSB->setEnabled( false );
+//	ui->targetSB->setEnabled( false );
 
 	m_pTimer->start();
 }

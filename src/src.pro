@@ -32,21 +32,24 @@ RCC_DIR             = ../build/rcc
 UI_DIR              = ../build/ui
 DESTDIR             = ../bin
 
-CONFIG += c++11
-QMAKE_CXXFLAGS += "-std=c++11"
+#CONFIG += c++11
+#QMAKE_CXXFLAGS += "-std=c++11"
 
 SOURCES += \
+    UI/profileeditor.cpp \
         main.cpp \
         mainwindow.cpp \
     global.cpp
 
 HEADERS += \
+    UI/profileeditor.h \
         mainwindow.h \
     global.h
 
 FORMS += \
-        mainwindow.ui
-
+        UI/profileeditor.ui \
+        mainwindow.UI
+        
 TRANSLATIONS += \
     lang/ru_RU.ts
 

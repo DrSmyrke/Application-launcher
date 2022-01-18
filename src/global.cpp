@@ -35,21 +35,26 @@ namespace app {
 
 	void loadSettings()
 	{
-		QSettings settings( "MySoft", "MyUpdater" );
+		QSettings settings( "MySoft", "AppLauncher" );
 
-		app::conf.repository = settings.value("MAIN/repository", app::conf.repository).toString();
-		app::conf.targetDir = settings.value("MAIN/targetDir", app::conf.targetDir).toString();
-		app::conf.key = settings.value("MAIN/key", app::conf.key).toString();
+//		if( settings.allKeys().size() == 0 ){
+//			app::saveSettings();
+//			return;
+//		}
+
+//		app::conf.repository = settings.value("MAIN/repository", app::conf.repository).toString();
+//		app::conf.targetDir = settings.value("MAIN/targetDir", app::conf.targetDir).toString();
+//		app::conf.key = settings.value("MAIN/key", app::conf.key).toString();
 	}
 
 	void saveSettings()
 	{
-		QSettings settings( "MySoft", "MyUpdater" );
-				settings.clear();
+		QSettings settings( "MySoft", "AppLauncher" );
+		settings.clear();
 
-		settings.setValue("MAIN/repository", app::conf.repository);
-		settings.setValue("MAIN/targetDir", app::conf.targetDir);
-		settings.setValue("MAIN/key", app::conf.key);
+//		settings.setValue("MAIN/repository", app::conf.repository);
+//		settings.setValue("MAIN/targetDir", app::conf.targetDir);
+//		settings.setValue("MAIN/key", app::conf.key);
 	}
 
 }

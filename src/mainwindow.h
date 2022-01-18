@@ -9,6 +9,7 @@
 #include "global.h"
 #include "myfunctions.h"
 #include "UI/proxysettings.h"
+#include "UI/profileeditor.h"
 
 namespace Ui {
 class MainWindow;
@@ -44,6 +45,8 @@ private slots:
 	void slot_finished();
 	void slot_run();
 	void slot_selectTarget();
+	void slot_updateIndex();
+	void slot_newProfile();
 private:
 	Ui::MainWindow *ui;
 	QTimer* m_pTimer;
@@ -60,8 +63,10 @@ private:
 	QString m_repoListFile;
 	QString m_repoURL;
 	ProxySettings* m_pPorxySettingsWindow;
+	ProfileEditor* m_pProfileEditor;
 
 	void startDownload(const QUrl &url, const QString &fileName);
+	QByteArray encryptData(const QByteArray &data, const QByteArray &key);
 	void decryptList();
 	void checkingFileSystem();
 	void backSpace();
