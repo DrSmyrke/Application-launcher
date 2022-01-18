@@ -1,4 +1,4 @@
-
+build*
 src/UI/proxysettings.ui
 src/UI/proxysettings.h
 src/UI/proxysettings.cpp
