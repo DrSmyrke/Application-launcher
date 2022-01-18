@@ -5,3 +5,6 @@ src/UI/proxysettings.cpp
 src/src.pro.user
 src/myfunctions.h
 src/myfunctions.cpp
+src/UI/prompt.cpp
+src/UI/prompt.h
+src/UI/prompt.ui
