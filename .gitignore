@@ -1,0 +1,7 @@
+
+src/UI/proxysettings.ui
+src/UI/proxysettings.h
+src/UI/proxysettings.cpp
+src/src.pro.user
+src/myfunctions.h
+src/myfunctions.cpp
