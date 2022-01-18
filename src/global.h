@@ -2,12 +2,22 @@
 #define GLOBAL_H
 
 #include <QString>
+#include <list>
+
+struct Profile
+{
+	QString name;
+	QString repo;
+	QString target;
+	QString key;
+	QString app;
+	QString wd;
+	QString args;
+};
 
 struct Config{
 	QString version;
-	QString repository;
-	QString targetDir;
-	QString key;
+	std::list< Profile > profiles;
 };
 
 namespace app {
@@ -17,6 +27,9 @@ namespace app {
 	void setLog(const uint8_t logLevel, const QString &mess);
 	void loadSettings();
 	void saveSettings();
+
+	bool profileExists(const QString& profileName);
+	void addProfile(const Profile& profile);
 }
 
 #endif // GLOBAL_H

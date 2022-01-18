@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+#include "global.h"
+
 namespace Ui {
 class ProfileEditor;
 }
@@ -15,6 +17,8 @@ public:
 	explicit ProfileEditor(QWidget *parent = nullptr);
 	~ProfileEditor();
 	void reset();
+	bool isCorrect();
+	Profile getProfile();
 private:
 	Ui::ProfileEditor *ui;
 	QString m_mwd;

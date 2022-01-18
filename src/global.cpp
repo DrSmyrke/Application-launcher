@@ -18,9 +18,9 @@ namespace app {
 							"\n", argv[0]);
 					ret = false;
 				}
-				if(QString(argv[i]) == "-t") app::conf.targetDir = QString(argv[++i]);
-				if(QString(argv[i]) == "-r") app::conf.repository = QString(argv[++i]);
-				if(QString(argv[i]) == "-k") app::conf.key = QString(argv[++i]);
+//				if(QString(argv[i]) == "-t") app::conf.targetDir = QString(argv[++i]);
+//				if(QString(argv[i]) == "-r") app::conf.repository = QString(argv[++i]);
+//				if(QString(argv[i]) == "-k") app::conf.key = QString(argv[++i]);
 			}
 		}
 		return ret;
@@ -36,6 +36,34 @@ namespace app {
 	void loadSettings()
 	{
 		QSettings settings( "MySoft", "AppLauncher" );
+		app::conf.profiles.clear();
+
+		QStringList list;
+
+		for( const auto &key:settings.allKeys() ){
+
+			auto tmp = key.split( "/" );
+			if( tmp.size() != 2 ) continue;
+			if( list.indexOf( tmp[ 0 ] ) != -1 ) continue;
+			list.push_back( tmp[ 0 ] );
+		}
+
+		for( const auto &key:list ){
+			settings.beginGroup( key );
+			Profile profile;
+
+			profile.name	= key;
+			profile.app		= settings.value( "app", "" ).toString();
+			profile.args	= settings.value( "args", "" ).toString();
+			profile.key		= settings.value( "key", "" ).toString();
+			profile.repo	= settings.value( "repository", "" ).toString();
+			profile.target	= settings.value( "target", "" ).toString();
+			profile.wd		= settings.value( "workdirectory", "" ).toString();
+
+			app::conf.profiles.push_back( profile );
+			settings.endGroup();
+		}
+
 
 //		if( settings.allKeys().size() == 0 ){
 //			app::saveSettings();
@@ -52,9 +80,40 @@ namespace app {
 		QSettings settings( "MySoft", "AppLauncher" );
 		settings.clear();
 
+		for( const auto &profile:app::conf.profiles ){
+			settings.beginGroup( profile.name );
+			settings.setValue( "repository", profile.repo );
+			settings.setValue( "key", profile.key );
+			settings.setValue( "target", profile.target );
+			settings.setValue( "app", profile.app );
+			settings.setValue( "workdirectory", profile.wd );
+			settings.setValue( "args", profile.args );
+			settings.endGroup();
+		}
+
 //		settings.setValue("MAIN/repository", app::conf.repository);
 //		settings.setValue("MAIN/targetDir", app::conf.targetDir);
-//		settings.setValue("MAIN/key", app::conf.key);
+		//		settings.setValue("MAIN/key", app::conf.key);
 	}
 
+	bool profileExists(const QString &profileName)
+	{
+		bool res = false;
+
+		for( const auto &profile:app::conf.profiles){
+			if( profile.name == profileName ){
+				res = true;
+				break;
+			}
+		}
+
+		return res;
+	}
+
+	void addProfile(const Profile &profile)
+	{
+		if( profileExists( profile.name ) ) return;
+
+		app::conf.profiles.push_back( profile );
+	}
 }

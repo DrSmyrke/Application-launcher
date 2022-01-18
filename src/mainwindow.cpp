@@ -18,6 +18,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	m_pManager = new QNetworkAccessManager( this );
 	m_pPorxySettingsWindow = new ProxySettings( this );
 	m_pProfileEditor = new ProfileEditor( this );
+	m_profile = "";
 
 	this->setWindowTitle( "App Launcher v" + app::conf.version );
 	this->setWindowIcon( QIcon( "://index.ico" ) );
@@ -44,12 +45,13 @@ MainWindow::MainWindow(QWidget *parent) :
 	//TODO: remove?
 	m_applicationPath = QCoreApplication::applicationDirPath();
 	ui->statusL->setText( " " );
+
+	updateProfiles();
 }
 
 MainWindow::~MainWindow()
 {
 	delete ui;
-	app::saveSettings();
 }
 
 void MainWindow::slot_downloadProgress(const qint64 bytesReceived, const qint64 bytesTotal)
@@ -95,7 +97,7 @@ void MainWindow::slot_run()
 			m_updatingF = false;
 			m_downloadList.clear();
 			ui->logBox->insertPlainText( tr( "Updating information from " ) );
-			ui->logBox->insertPlainText( app::conf.repository );
+//			ui->logBox->insertPlainText( app::conf.repository );
 			ui->logBox->insertPlainText( " ...\n" );
 			startDownload( QUrl( m_repoListFile ), "" );
 		break;
@@ -130,14 +132,6 @@ void MainWindow::slot_run()
 	}
 
 	ui->logBox->moveCursor( QTextCursor::End );
-}
-
-void MainWindow::slot_selectTarget()
-{
-	auto target = QFileDialog::getExistingDirectory(this, tr("Target directory"),
-													app::conf.targetDir,
-													QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
-	//	ui->targetBox->setText( target );
 }
 
 void MainWindow::slot_updateIndex()
@@ -186,8 +180,8 @@ void MainWindow::slot_updateIndex()
 			ba.append( hash );
 			ba.append( "\t" );
 			ba.append( QString::number( fileSize ).toUtf8() );
-			if( fileSize < 1000 ) ba.append( "\t" );
-			if( fileSize < 100000 ) ba.append( "\t" );
+//			if( fileSize < 1000 ) ba.append( "\t" );
+//			if( fileSize < 100000 ) ba.append( "\t" );
 			ba.append( "\t" );
 			ba.append( baseFile.toUtf8() );
 			ba.append( "\n" );
@@ -214,7 +208,11 @@ void MainWindow::slot_updateIndex()
 void MainWindow::slot_newProfile()
 {
 	if( m_pProfileEditor->exec() ){
-
+		if( m_pProfileEditor->isCorrect() ){
+			app::addProfile( m_pProfileEditor->getProfile() );
+			updateProfiles();
+			app::saveSettings();
+		}
 	}
 }
 
@@ -247,7 +245,7 @@ void MainWindow::decryptList()
 	m_working = true;
 	ui->statusL->setText( " " );
 	m_updateList.clear();
-	mf::XOR( m_buff, app::conf.key.toUtf8() );
+//	mf::XOR( m_buff, app::conf.key.toUtf8() );
 	m_updateList = QString( QByteArray::fromBase64( m_buff ) ).split( "\n" );
 	m_working = false;
 }
@@ -268,7 +266,8 @@ void MainWindow::checkingFileSystem()
 		int fileSize = tmp[1].toInt();
 		auto remoteFile = tmp[2];
 
-		QString targetFile = QString( "%1/%2" ).arg( app::conf.targetDir ).arg( remoteFile );
+//		QString targetFile = QString( "%1/%2" ).arg( app::conf.targetDir ).arg( remoteFile );
+		QString targetFile = "";
 		QFileInfo fi;
 		fi.setFile( targetFile );
 		auto targetDir = fi.absoluteDir().absolutePath();
@@ -281,7 +280,18 @@ void MainWindow::checkingFileSystem()
 		ui->statusL->setText( str );
 		i++;
 
+		if( fileSize == 0 ){
+			//skip file
+			continue;
+		}
+
 		if( mf::checkFile( targetFile ) ){
+			if( fileSize == -1 ){
+				//delete file
+				QFile( targetFile ).remove();
+				continue;
+			}
+
 			qint64 size = QFileInfo(targetFile).size();
 			//struct stat stat_buf;
 			//int rc = stat( targetFile.toUtf8().data(), &stat_buf);
@@ -346,6 +356,20 @@ void MainWindow::addToUpdate(const QString &localFile, const QString &remoteFile
 	m_downloadList.push_back( data );
 }
 
+void MainWindow::updateProfiles()
+{
+	bool found = false;
+	ui->profilesBox->clear();
+	for( const auto &profile:app::conf.profiles ){
+		ui->profilesBox->addItem( profile.name );
+		if( profile.name == m_profile ) found = true;
+	}
+
+	if( ui->profilesBox->count() > 0 && m_profile != "" && found ){
+		ui->profilesBox->setCurrentText( m_profile );
+	}
+}
+
 void MainWindow::slot_update()
 {
 //	auto repo = ui->addressBox->text();
@@ -355,28 +379,28 @@ void MainWindow::slot_update()
 //		return;
 //	}
 
-	if( !QDir( app::conf.targetDir ).exists() ){
-		QDir().mkpath( app::conf.targetDir );
-	}
-	if( !QDir( app::conf.targetDir ).exists() ){
-		ui->logBox->insertPlainText( tr( "Target dir not found" ) + "\n" );
-		return;
-	}
+//	if( !QDir( app::conf.targetDir ).exists() ){
+//		QDir().mkpath( app::conf.targetDir );
+//	}
+//	if( !QDir( app::conf.targetDir ).exists() ){
+//		ui->logBox->insertPlainText( tr( "Target dir not found" ) + "\n" );
+//		return;
+//	}
 
 //	app::conf.repository = repo;
 //	app::conf.targetDir = target;
 //	app::conf.key = key;
 
-	auto tmp = app::conf.repository.split( " " );
-	if( tmp.size() != 2 ){
-		ui->logBox->insertPlainText( tr( "Repository address invalid\n Example: [http://example.com/repo repoName]" ) + "\n" );
-		return;
-	}
-	m_repoURL = tmp[0];
-	m_repoListFile = QString( "%1/%2.list" ).arg( m_repoURL ).arg( tmp[1] );
-	m_state = State::downloadList;
-	ui->updateB->setEnabled( false );
-//	ui->targetSB->setEnabled( false );
+//	auto tmp = app::conf.repository.split( " " );
+//	if( tmp.size() != 2 ){
+//		ui->logBox->insertPlainText( tr( "Repository address invalid\n Example: [http://example.com/repo repoName]" ) + "\n" );
+//		return;
+//	}
+//	m_repoURL = tmp[0];
+//	m_repoListFile = QString( "%1/%2.list" ).arg( m_repoURL ).arg( tmp[1] );
+//	m_state = State::downloadList;
+//	ui->updateB->setEnabled( false );
+////	ui->targetSB->setEnabled( false );
 
-	m_pTimer->start();
+//	m_pTimer->start();
 }

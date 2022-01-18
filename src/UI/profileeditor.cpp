@@ -59,3 +59,27 @@ void ProfileEditor::reset()
 	ui->applicationLineEdit->clear();
 	ui->argsLineEdit->clear();
 }
+
+bool ProfileEditor::isCorrect()
+{
+	if( ui->addressBox->text().isEmpty() ) return false;
+	if( ui->targetBox->text().isEmpty() ) return false;
+	if( ui->NameLineEdit->text().isEmpty() ) return false;
+	if( ui->applicationLineEdit->text().isEmpty() ) return false;
+	return true;
+}
+
+Profile ProfileEditor::getProfile()
+{
+	Profile profile;
+
+	profile.app = ui->applicationLineEdit->text();
+	profile.args = ui->argsLineEdit->text();
+	profile.key = ui->keyBox->text();
+	profile.name = ui->NameLineEdit->text();
+	profile.repo = ui->addressBox->text();
+	profile.target = ui->targetBox->text();
+	profile.wd = ui->workDirectoryLineEdit->text();
+
+	return profile;
+}

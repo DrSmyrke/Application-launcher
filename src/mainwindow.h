@@ -44,7 +44,6 @@ private slots:
 	void slot_readyRead();
 	void slot_finished();
 	void slot_run();
-	void slot_selectTarget();
 	void slot_updateIndex();
 	void slot_newProfile();
 private:
@@ -64,6 +63,7 @@ private:
 	QString m_repoURL;
 	ProxySettings* m_pPorxySettingsWindow;
 	ProfileEditor* m_pProfileEditor;
+	QString m_profile;
 
 	void startDownload(const QUrl &url, const QString &fileName);
 	QByteArray encryptData(const QByteArray &data, const QByteArray &key);
@@ -73,6 +73,8 @@ private:
 	void downloadUpdates();
 	void drawProgress(const uint32_t filesLeft);
 	void addToUpdate(const QString &localFile, const QString &remoteFile);
+
+	void updateProfiles();
 };
 
 #endif // MAINWINDOW_H
