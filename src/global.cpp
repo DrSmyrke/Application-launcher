@@ -116,4 +116,28 @@ namespace app {
 
 		app::conf.profiles.push_back( profile );
 	}
+
+	const Profile *getProfile(const QString &profileName)
+	{
+		const Profile *ret = nullptr;
+
+		for( const auto &profile:app::conf.profiles){
+			if( profile.name == profileName ){
+				ret = &profile;
+				break;
+			}
+		}
+
+		return ret;
+	}
+
+	void removeProfile(const QString &profileName)
+	{
+		for( auto i = app::conf.profiles.begin(); i != app::conf.profiles.end(); i++ ){
+			if( (*i).name == profileName ){
+				app::conf.profiles.erase( i );
+				break;
+			}
+		}
+	}
 }

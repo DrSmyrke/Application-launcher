@@ -83,3 +83,17 @@ Profile ProfileEditor::getProfile()
 
 	return profile;
 }
+
+void ProfileEditor::setProfile(const Profile *profile)
+{
+	if( profile == nullptr )
+		return;
+
+	ui->applicationLineEdit->setText( profile->app );
+	ui->argsLineEdit->setText( profile->args );
+	ui->keyBox->setText( profile->key );
+	ui->NameLineEdit->setText( profile->name );
+	ui->addressBox->setText( profile->repo );
+	ui->targetBox->setText( profile->target );
+	ui->workDirectoryLineEdit->setText( profile->wd );
+}

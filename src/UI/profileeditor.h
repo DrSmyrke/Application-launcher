@@ -19,6 +19,7 @@ public:
 	void reset();
 	bool isCorrect();
 	Profile getProfile();
+	void setProfile(const Profile *profile);
 private:
 	Ui::ProfileEditor *ui;
 	QString m_mwd;

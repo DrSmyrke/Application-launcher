@@ -46,6 +46,9 @@ private slots:
 	void slot_run();
 	void slot_updateIndex();
 	void slot_newProfile();
+	void slot_editProfile();
+	void slot_changeProfile(const QString &profileName);
+	void slot_launchApp();
 private:
 	Ui::MainWindow *ui;
 	QTimer* m_pTimer;
@@ -55,12 +58,15 @@ private:
 	uint8_t m_state;
 	bool m_working;
 	bool m_updatingF;
+	bool m_replyStarted;
 	QNetworkAccessManager* m_pManager;
 	QNetworkReply* m_pReply;
 	QByteArray m_buff;
 	QString m_applicationPath;
 	QString m_repoListFile;
 	QString m_repoURL;
+	QString m_repoKey;
+	QString m_targetPath;
 	ProxySettings* m_pPorxySettingsWindow;
 	ProfileEditor* m_pProfileEditor;
 	QString m_profile;

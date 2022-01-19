@@ -18,24 +18,27 @@ MainWindow::MainWindow(QWidget *parent) :
 	m_pManager = new QNetworkAccessManager( this );
 	m_pPorxySettingsWindow = new ProxySettings( this );
 	m_pProfileEditor = new ProfileEditor( this );
-	m_profile = "";
+	m_profile			= "";
+	m_repoListFile		= "";
+	m_repoURL			= "";
+	m_repoKey			= "";
+	m_targetPath		= "";
+	m_replyStarted		= false;
+
 
 	this->setWindowTitle( "App Launcher v" + app::conf.version );
 	this->setWindowIcon( QIcon( "://index.ico" ) );
 
-//	ui->addressBox->setText( app::conf.repository );
-//	ui->targetBox->setText( app::conf.targetDir );
-//	ui->keyBox->setText( app::conf.key );
 
-//	connect( ui->updateB, &QPushButton::clicked, this, &MainWindow::slot_update );
-//	connect( ui->addressBox, &QLineEdit::returnPressed, this, &MainWindow::slot_update );
-//	connect( m_pTimer, &QTimer::timeout, this, &MainWindow::slot_run );
-//	connect( ui->targetSB, &QPushButton::clicked, this, &MainWindow::slot_selectTarget );
-//	connect( ui->targetBox, &QLineEdit::returnPressed, this, &MainWindow::slot_selectTarget );
-
+	connect( ui->updateB, &QPushButton::clicked, this, &MainWindow::slot_update );
+	connect( m_pTimer, &QTimer::timeout, this, &MainWindow::slot_run );
 	connect( ui->actionProxy_settings, &QAction::triggered, m_pPorxySettingsWindow, &ProxySettings::exec );
 	connect( ui->actionCreate_Update_Index, &QAction::triggered, this, &MainWindow::slot_updateIndex );
 	connect( ui->actionNew_profile, &QAction::triggered, this, &MainWindow::slot_newProfile );
+	connect( ui->profilesBox, &QComboBox::currentTextChanged, this, &MainWindow::slot_changeProfile );
+	connect( ui->actionEdit_profile, &QAction::triggered, this, &MainWindow::slot_editProfile );
+	connect( ui->launchB, &QPushButton::clicked, this, &MainWindow::slot_launchApp );
+
 
 	m_pTimer->setInterval( 500 );
 	m_state = State::downloadList;
@@ -71,12 +74,20 @@ void MainWindow::slot_readyRead()
 
 void MainWindow::slot_finished()
 {
-	disconnect( m_pReply, &QNetworkReply::downloadProgress, this, &MainWindow::slot_downloadProgress );
-	disconnect( m_pReply, &QNetworkReply::readyRead, this, &MainWindow::slot_readyRead );
-	disconnect( m_pReply, &QNetworkReply::finished, this, &MainWindow::slot_finished );
-
 	if( m_file.isOpen() ){
 		m_file.close();
+	}
+
+	if( m_replyStarted ){
+		disconnect( m_pReply, &QNetworkReply::downloadProgress, this, &MainWindow::slot_downloadProgress );
+		disconnect( m_pReply, &QNetworkReply::readyRead, this, &MainWindow::slot_readyRead );
+		disconnect( m_pReply, &QNetworkReply::finished, this, &MainWindow::slot_finished );
+		m_replyStarted = false;
+
+		if( m_pReply->error() != QNetworkReply::NoError ){
+			ui->statusL->setText( QString( tr( "Download error: %1 [%2]" ) ).arg( m_pReply->error() ).arg( m_pReply->errorString() ) );
+			return;
+		}
 	}
 
 	if( m_updatingF ){
@@ -94,10 +105,11 @@ void MainWindow::slot_run()
 	switch( m_state++ ){
 		case State::downloadList:
 			ui->progressBar->setValue( 20 );
+			ui->launchB->setEnabled( false );
 			m_updatingF = false;
 			m_downloadList.clear();
 			ui->logBox->insertPlainText( tr( "Updating information from " ) );
-//			ui->logBox->insertPlainText( app::conf.repository );
+			ui->logBox->insertPlainText( m_repoURL );
 			ui->logBox->insertPlainText( " ...\n" );
 			startDownload( QUrl( m_repoListFile ), "" );
 		break;
@@ -124,6 +136,8 @@ void MainWindow::slot_run()
 			}
 			ui->statusL->setText( " " );
 			ui->updateB->setEnabled( true );
+			ui->launchB->setEnabled( true );
+			m_pTimer->stop();
 //			ui->targetSB->setEnabled( true );
 			//TODO: Maybe?
 			//emit close();
@@ -167,7 +181,7 @@ void MainWindow::slot_updateIndex()
 
 		for( auto targetFile:list ){
 			QString baseFile = targetFile;
-			baseFile.replace( targetDir, "" );
+			baseFile.replace( QString( "%1/" ).arg( targetDir ), "" );
 
 			if( baseFile == "/index.list" ){
 				i++;
@@ -216,10 +230,77 @@ void MainWindow::slot_newProfile()
 	}
 }
 
+void MainWindow::slot_editProfile()
+{
+	auto profile = app::getProfile( m_profile );
+	if( profile == nullptr )
+		return;
+
+	m_pProfileEditor->setProfile( profile );
+	if( m_pProfileEditor->exec() ){
+		if( m_pProfileEditor->isCorrect() ){
+			app::removeProfile( profile->name );
+			app::addProfile( m_pProfileEditor->getProfile() );
+			updateProfiles();
+			app::saveSettings();
+		}
+	}
+}
+
+void MainWindow::slot_changeProfile(const QString &profileName)
+{
+	m_profile = profileName;
+
+	if( profileName != "" ){
+		ui->updateB->setEnabled( true );
+	}else{
+		ui->updateB->setEnabled( false );
+	}
+}
+
+void MainWindow::slot_launchApp()
+{
+	auto profile = app::getProfile( m_profile );
+	if( profile == nullptr )
+		return;
+
+	if( profile->app.isEmpty() )
+		return;
+
+	if( !mf::checkFile( profile->app ) )
+		return;
+
+	bool res = mf::startDetached( profile->app, profile->args.split( " " ), profile->wd );
+}
+
 void MainWindow::startDownload(const QUrl &url, const QString &fileName)
 {
 	m_working = true;
 	m_buff.clear();
+
+	if( mf::checkFile( url.path() ) ){
+
+		if( fileName.isEmpty() ){
+			m_file.setFileName( url.path() );
+			if( m_file.open( QIODevice::ReadOnly ) ){
+				while( !m_file.atEnd() ){
+					m_buff.append( m_file.readAll() );
+				}
+				m_file.close();
+			}else{
+				ui->statusL->setText( QString( tr( "Open error: [%1] %2" ) ).arg( m_file.fileName() ).arg( m_file.errorString() ) );
+				return;
+			}
+		}else{
+			bool res = QFile::copy( url.path(), fileName );
+			if( !res ){
+				ui->statusL->setText( QString( tr( "Copy error: [%1] -> [%2]" ) ).arg( url.path() ).arg( fileName ) );
+				return;
+			}
+		}
+		slot_finished();
+		return;
+	}
 
 	if( !fileName.isEmpty() ){
 		m_file.setFileName( fileName );
@@ -227,6 +308,8 @@ void MainWindow::startDownload(const QUrl &url, const QString &fileName)
 	}
 
 	m_pReply = m_pManager->get( QNetworkRequest( url ) );
+
+	m_replyStarted = true;
 
 	connect( m_pReply, &QNetworkReply::downloadProgress, this, &MainWindow::slot_downloadProgress );
 	connect( m_pReply, &QNetworkReply::readyRead, this, &MainWindow::slot_readyRead );
@@ -245,7 +328,7 @@ void MainWindow::decryptList()
 	m_working = true;
 	ui->statusL->setText( " " );
 	m_updateList.clear();
-//	mf::XOR( m_buff, app::conf.key.toUtf8() );
+	mf::XOR( m_buff, m_repoKey.toUtf8() );
 	m_updateList = QString( QByteArray::fromBase64( m_buff ) ).split( "\n" );
 	m_working = false;
 }
@@ -259,6 +342,10 @@ void MainWindow::checkingFileSystem()
 	int totalFiles = m_updateList.size();
 
 	for( auto elem:m_updateList ){
+		elem.replace( "\t\t", "\t" );
+		elem.replace( "\t\t", "\t" );
+		elem.replace( "\t\t", "\t" );
+		elem.replace( "\t\t", "\t" );
 		auto tmp = elem.split( "\t" );
 		if( tmp.size() < 3 ) continue;
 
@@ -266,8 +353,7 @@ void MainWindow::checkingFileSystem()
 		int fileSize = tmp[1].toInt();
 		auto remoteFile = tmp[2];
 
-//		QString targetFile = QString( "%1/%2" ).arg( app::conf.targetDir ).arg( remoteFile );
-		QString targetFile = "";
+		QString targetFile = QString( "%1/%2" ).arg( m_targetPath ).arg( remoteFile );
 		QFileInfo fi;
 		fi.setFile( targetFile );
 		auto targetDir = fi.absoluteDir().absolutePath();
@@ -293,9 +379,6 @@ void MainWindow::checkingFileSystem()
 			}
 
 			qint64 size = QFileInfo(targetFile).size();
-			//struct stat stat_buf;
-			//int rc = stat( targetFile.toUtf8().data(), &stat_buf);
-			//qint64 size2 = (rc == 0) ? stat_buf.st_size : -1;
 			if( size != fileSize ){
 				QFile(targetFile).remove();
 				addToUpdate( targetFile, downloadFile );
@@ -359,6 +442,7 @@ void MainWindow::addToUpdate(const QString &localFile, const QString &remoteFile
 void MainWindow::updateProfiles()
 {
 	bool found = false;
+	ui->updateB->setEnabled( false );
 	ui->profilesBox->clear();
 	for( const auto &profile:app::conf.profiles ){
 		ui->profilesBox->addItem( profile.name );
@@ -372,35 +456,34 @@ void MainWindow::updateProfiles()
 
 void MainWindow::slot_update()
 {
-//	auto repo = ui->addressBox->text();
-//	auto target = ui->targetBox->text();
-//	auto key = ui->keyBox->text();
-//	if( repo.isEmpty() || target.isEmpty() || key.isEmpty() ){
-//		return;
-//	}
+	auto profile = app::getProfile( m_profile );
+	if( profile == nullptr )
+		return;
 
-//	if( !QDir( app::conf.targetDir ).exists() ){
-//		QDir().mkpath( app::conf.targetDir );
-//	}
-//	if( !QDir( app::conf.targetDir ).exists() ){
-//		ui->logBox->insertPlainText( tr( "Target dir not found" ) + "\n" );
-//		return;
-//	}
+	if( profile->repo.isEmpty() || profile->target.isEmpty() )
+		return;
 
-//	app::conf.repository = repo;
-//	app::conf.targetDir = target;
-//	app::conf.key = key;
+	if( !QDir( profile->target ).exists() )
+		QDir().mkpath( profile->target );
+
+	if( !QDir( profile->target ).exists() ){
+		ui->logBox->insertPlainText( tr( "Target dir not found" ) + "\n" );
+		return;
+	}
 
 //	auto tmp = app::conf.repository.split( " " );
 //	if( tmp.size() != 2 ){
 //		ui->logBox->insertPlainText( tr( "Repository address invalid\n Example: [http://example.com/repo repoName]" ) + "\n" );
 //		return;
 //	}
-//	m_repoURL = tmp[0];
-//	m_repoListFile = QString( "%1/%2.list" ).arg( m_repoURL ).arg( tmp[1] );
-//	m_state = State::downloadList;
-//	ui->updateB->setEnabled( false );
+
+	m_repoURL = QString( "%1/files" ).arg( profile->repo );
+	m_repoKey = profile->key;
+	m_targetPath = profile->target;
+	m_repoListFile = QString( "%1/index.list" ).arg( m_repoURL );
+	m_state = State::downloadList;
+	ui->updateB->setEnabled( false );
 ////	ui->targetSB->setEnabled( false );
 
-//	m_pTimer->start();
+	m_pTimer->start();
 }
