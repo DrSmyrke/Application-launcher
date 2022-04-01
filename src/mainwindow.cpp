@@ -17,13 +17,15 @@ MainWindow::MainWindow(QWidget *parent) :
 	m_pTimer = new QTimer();
 	m_pManager = new QNetworkAccessManager( this );
 	m_pPorxySettingsWindow = new ProxySettings( this );
-	m_pProfileEditor = new ProfileEditor( this );
-	m_profile			= "";
-	m_repoListFile		= "";
-	m_repoURL			= "";
-	m_repoKey			= "";
-	m_targetPath		= "";
-	m_replyStarted		= false;
+	m_pProfileEditor			= new ProfileEditor( this );
+	m_pStatusL					= new QLabel( this );
+	m_pMessageL					= new QLabel( this );
+	m_profile					= "";
+	m_repoListFile				= "";
+	m_repoURL					= "";
+	m_repoKey					= "";
+	m_targetPath				= "";
+	m_replyStarted				= false;
 
 
 	this->setWindowTitle( "App Launcher v" + app::conf.version );
@@ -38,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect( ui->profilesBox, &QComboBox::currentTextChanged, this, &MainWindow::slot_changeProfile );
 	connect( ui->actionEdit_profile, &QAction::triggered, this, &MainWindow::slot_editProfile );
 	connect( ui->launchB, &QPushButton::clicked, this, &MainWindow::slot_launchApp );
+	connect( ui->actionUp_profile, &QAction::triggered, this, &MainWindow::slot_upProfile );
 
 
 	m_pTimer->setInterval( 500 );
@@ -45,9 +48,15 @@ MainWindow::MainWindow(QWidget *parent) :
 	m_working = false;
 	m_updatingF = false;
 	ui->progressBar->setValue( 0 );
+	ui->progressBar_2->setValue( 0 );
 	//TODO: remove?
 	m_applicationPath = QCoreApplication::applicationDirPath();
-	ui->statusL->setText( " " );
+	m_pStatusL->setText( tr( "READY" ) );
+	ui->targetL->clear();
+	ui->fileSizeL->clear();
+
+	ui->statusbar->addWidget( m_pStatusL );
+	ui->statusbar->addWidget( m_pMessageL );
 
 	updateProfiles();
 }
@@ -59,8 +68,14 @@ MainWindow::~MainWindow()
 
 void MainWindow::slot_downloadProgress(const qint64 bytesReceived, const qint64 bytesTotal)
 {
-	auto str = QString( "   Downloading [%1/%2]...\n" ).arg( mf::getSize( (uint64_t)bytesReceived ) ).arg( mf::getSize( (uint64_t)bytesTotal ) );
-	ui->statusL->setText( str );
+	m_pStatusL->setText( tr( "DOWNLOADING" ) );
+
+	auto str = QString( "%1/%2" ).arg( mf::getSize( (uint64_t)bytesReceived ) ).arg( mf::getSize( (uint64_t)bytesTotal ) );
+
+	ui->fileSizeL->setText( str );
+
+	int prz = (float)bytesReceived / ( (float)bytesTotal / 100.0 );
+	ui->progressBar_2->setValue( prz );
 }
 
 void MainWindow::slot_readyRead()
@@ -85,7 +100,9 @@ void MainWindow::slot_finished()
 		m_replyStarted = false;
 
 		if( m_pReply->error() != QNetworkReply::NoError ){
-			ui->statusL->setText( QString( tr( "Download error: %1 [%2]" ) ).arg( m_pReply->error() ).arg( m_pReply->errorString() ) );
+			m_pStatusL->setText( tr( "DOWNLOAD ERROR" ) );
+			m_pMessageL->setText( m_pReply->errorString() );
+			ui->updateB->setEnabled( true );
 			return;
 		}
 	}
@@ -104,7 +121,6 @@ void MainWindow::slot_run()
 
 	switch( m_state++ ){
 		case State::downloadList:
-			ui->progressBar->setValue( 20 );
 			ui->launchB->setEnabled( false );
 			m_updatingF = false;
 			m_downloadList.clear();
@@ -114,30 +130,26 @@ void MainWindow::slot_run()
 			startDownload( QUrl( m_repoListFile ), "" );
 		break;
 		case State::decryptingList:
-			ui->progressBar->setValue( 40 );
 			ui->logBox->insertPlainText( tr( "Decrypting information..." ) + "\n" );
 			decryptList();
 		break;
 		case State::checkingFS:
-			ui->progressBar->setValue( 60 );
 			ui->logBox->insertPlainText( tr( "Checking filesystem..." ) + "\n" );
 			checkingFileSystem();
 		break;
 		case State::downloadUpdates:
-			ui->progressBar->setValue( 80 );
 			ui->logBox->insertPlainText( tr( "Download updates..." ) + "\n" );
 			downloadUpdates();
 		break;
 		case State::finished:
 			ui->logBox->insertPlainText( tr( "Finished!" ) + "\n" );
-			ui->progressBar->setValue( 100 );
 			if( m_pTimer->isActive() ){
 				m_pTimer->start();
 			}
-			ui->statusL->setText( " " );
 			ui->updateB->setEnabled( true );
 			ui->launchB->setEnabled( true );
 			m_pTimer->stop();
+			m_pStatusL->setText( tr( "READY" ) );
 //			ui->targetSB->setEnabled( true );
 			//TODO: Maybe?
 			//emit close();
@@ -247,6 +259,16 @@ void MainWindow::slot_editProfile()
 	}
 }
 
+void MainWindow::slot_upProfile()
+{
+	if( m_profile != "" ){
+		if( app::upProfile( m_profile ) ){
+			app::saveSettings();
+			updateProfiles();
+		}
+	}
+}
+
 void MainWindow::slot_changeProfile(const QString &profileName)
 {
 	m_profile = profileName;
@@ -280,21 +302,26 @@ void MainWindow::startDownload(const QUrl &url, const QString &fileName)
 
 	if( mf::checkFile( url.path() ) ){
 
+		ui->targetL->setText( url.path() );
+
 		if( fileName.isEmpty() ){
 			m_file.setFileName( url.path() );
+
 			if( m_file.open( QIODevice::ReadOnly ) ){
 				while( !m_file.atEnd() ){
 					m_buff.append( m_file.readAll() );
 				}
 				m_file.close();
 			}else{
-				ui->statusL->setText( QString( tr( "Open error: [%1] %2" ) ).arg( m_file.fileName() ).arg( m_file.errorString() ) );
+				m_pStatusL->setText( tr( "OPEN ERROR" ) );
+				m_pMessageL->setText( m_file.errorString() );
 				return;
 			}
 		}else{
 			bool res = QFile::copy( url.path(), fileName );
 			if( !res ){
-				ui->statusL->setText( QString( tr( "Copy error: [%1] -> [%2]" ) ).arg( url.path() ).arg( fileName ) );
+				m_pStatusL->setText( tr( "COPY ERROR" ) );
+				m_pMessageL->setText( fileName );
 				return;
 			}
 		}
@@ -326,7 +353,7 @@ QByteArray MainWindow::encryptData(const QByteArray &data, const QByteArray &key
 void MainWindow::decryptList()
 {
 	m_working = true;
-	ui->statusL->setText( " " );
+	m_pMessageL->setText( "" );
 	m_updateList.clear();
 	mf::XOR( m_buff, m_repoKey.toUtf8() );
 	m_updateList = QString( QByteArray::fromBase64( m_buff ) ).split( "\n" );
@@ -336,7 +363,7 @@ void MainWindow::decryptList()
 void MainWindow::checkingFileSystem()
 {
 	m_working = true;
-	ui->statusL->setText( " " );
+	m_pMessageL->setText( "" );
 
 	int i = 0;
 	int totalFiles = m_updateList.size();
@@ -362,8 +389,10 @@ void MainWindow::checkingFileSystem()
 			QDir().mkpath( targetDir );
 		}
 
-		auto str = QString( tr("Checking files [%1/%2] ...") + "\n" ).arg( i ).arg( totalFiles );
-		ui->statusL->setText( str );
+		ui->filesCountL->setText( QString( "%1/%2" ).arg( i ).arg( totalFiles ) );
+		int prz = (float)i / ( (float)totalFiles / 100.0 );
+		ui->progressBar->setValue( prz );
+		ui->targetL->setText( targetFile );
 		i++;
 
 		if( fileSize == 0 ){
@@ -394,7 +423,7 @@ void MainWindow::checkingFileSystem()
 		}
 	}
 
-	ui->statusL->setText( " " );
+	ui->targetL->setText( "" );
 	m_working = false;
 }
 
@@ -417,18 +446,15 @@ void MainWindow::downloadUpdates()
 
 	m_updatingF = true;
 
-	drawProgress( m_downloadList.size() - 1 );
+
+	uint16_t fileNum = m_totalFiles - m_downloadList.size() + 1;
+	ui->filesCountL->setText( QString( "%1/%2" ).arg( fileNum ).arg( m_totalFiles ) );
+	int prz = (float)fileNum / ( (float)m_totalFiles / 100.0 );
+	ui->progressBar->setValue( prz );
 
 	auto data = m_downloadList.first();
 	m_downloadList.pop_front();
 	startDownload( QUrl( data.remoteFile ), data.localFile );
-}
-
-void MainWindow::drawProgress(const uint32_t filesLeft)
-{
-	auto str = QString( tr("   Files left: %1      ") ).arg( filesLeft );
-	backSpace();
-	ui->logBox->insertPlainText( str );
 }
 
 void MainWindow::addToUpdate(const QString &localFile, const QString &remoteFile)
@@ -437,6 +463,7 @@ void MainWindow::addToUpdate(const QString &localFile, const QString &remoteFile
 	data.localFile = localFile;
 	data.remoteFile = remoteFile;
 	m_downloadList.push_back( data );
+	m_totalFiles = m_downloadList.size();
 }
 
 void MainWindow::updateProfiles()

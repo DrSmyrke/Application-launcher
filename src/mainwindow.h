@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QFile>
+#include <QLabel>
 #include <QMainWindow>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -47,6 +48,7 @@ private slots:
 	void slot_updateIndex();
 	void slot_newProfile();
 	void slot_editProfile();
+	void slot_upProfile();
 	void slot_changeProfile(const QString &profileName);
 	void slot_launchApp();
 private:
@@ -70,6 +72,10 @@ private:
 	ProxySettings* m_pPorxySettingsWindow;
 	ProfileEditor* m_pProfileEditor;
 	QString m_profile;
+	QLabel* m_pStatusL;
+	QLabel* m_pMessageL;
+	uint16_t m_totalFiles;
+
 
 	void startDownload(const QUrl &url, const QString &fileName);
 	QByteArray encryptData(const QByteArray &data, const QByteArray &key);
@@ -77,7 +83,6 @@ private:
 	void checkingFileSystem();
 	void backSpace();
 	void downloadUpdates();
-	void drawProgress(const uint32_t filesLeft);
 	void addToUpdate(const QString &localFile, const QString &remoteFile);
 
 	void updateProfiles();

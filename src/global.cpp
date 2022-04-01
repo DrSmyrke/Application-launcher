@@ -140,4 +140,44 @@ namespace app {
 			}
 		}
 	}
+
+	bool upProfile(const QString& profileName)
+	{
+		Profile *prevProfile = nullptr;
+		bool ret = false;
+		Profile temp;
+
+		for( auto &profile:app::conf.profiles){
+			if( profile.name == profileName && prevProfile != nullptr ){
+				temp.name			= prevProfile->name;
+				temp.repo			= prevProfile->repo;
+				temp.target			= prevProfile->target;
+				temp.key			= prevProfile->key;
+				temp.app			= prevProfile->app;
+				temp.wd				= prevProfile->wd;
+				temp.args			= prevProfile->args;
+
+				prevProfile->name	= profile.name;
+				prevProfile->repo	= profile.repo;
+				prevProfile->target	= profile.target;
+				prevProfile->key	= profile.key;
+				prevProfile->app	= profile.app;
+				prevProfile->wd		= profile.wd;
+				prevProfile->args	= profile.args;
+
+				profile.name		= temp.name;
+				profile.repo		= temp.repo;
+				profile.target		= temp.target;
+				profile.key			= temp.key;
+				profile.app			= temp.app;
+				profile.wd			= temp.wd;
+				profile.args		= temp.args;
+				ret = true;
+				break;
+			}
+			prevProfile = &profile;
+		}
+		return ret;
+	}
+
 }

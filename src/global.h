@@ -32,6 +32,7 @@ namespace app {
 	void addProfile(const Profile& profile);
 	const Profile* getProfile(const QString& profileName);
 	void removeProfile(const QString& profileName);
+	bool upProfile(const QString& profileName);
 }
 
 #endif // GLOBAL_H
