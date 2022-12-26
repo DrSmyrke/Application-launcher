@@ -157,7 +157,7 @@
      <x>0</x>
      <y>0</y>
      <width>775</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -181,6 +181,9 @@
     <addaction name="actionNew_profile"/>
     <addaction name="actionEdit_profile"/>
     <addaction name="actionUp_profile"/>
+    <addaction name="separator"/>
+    <addaction name="actionExport_Profiles"/>
+    <addaction name="actionImport_Profiles"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuRepository"/>
@@ -215,6 +218,16 @@
   <action name="actionUp_profile">
    <property name="text">
     <string>Up profile</string>
+   </property>
+  </action>
+  <action name="actionExport_Profiles">
+   <property name="text">
+    <string>Export Profiles</string>
+   </property>
+  </action>
+  <action name="actionImport_Profiles">
+   <property name="text">
+    <string>Import Profiles</string>
    </property>
   </action>
  </widget>

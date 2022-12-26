@@ -17,6 +17,8 @@ int main(int argc, char *argv[])
 	if( !app::parsArgs(argc, argv) ) return 0;
 
 	MainWindow w;
+	w.setWindowTitle( "App Launcher v" + app::conf.version );
+	w.setWindowIcon( QIcon( "://index.ico" ) );
 	w.show();
 
 	return a.exec();

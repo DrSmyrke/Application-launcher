@@ -28,10 +28,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	m_replyStarted				= false;
 
 
-	this->setWindowTitle( "App Launcher v" + app::conf.version );
-	this->setWindowIcon( QIcon( "://index.ico" ) );
-
-
 	connect( ui->updateB, &QPushButton::clicked, this, &MainWindow::slot_update );
 	connect( m_pTimer, &QTimer::timeout, this, &MainWindow::slot_run );
 	connect( ui->actionProxy_settings, &QAction::triggered, m_pPorxySettingsWindow, &ProxySettings::exec );
@@ -41,6 +37,32 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect( ui->actionEdit_profile, &QAction::triggered, this, &MainWindow::slot_editProfile );
 	connect( ui->launchB, &QPushButton::clicked, this, &MainWindow::slot_launchApp );
 	connect( ui->actionUp_profile, &QAction::triggered, this, &MainWindow::slot_upProfile );
+	connect( ui->actionExport_Profiles, &QAction::triggered, this, [this](){
+		auto targetDir = QFileDialog::getExistingDirectory(this, tr( "Export directory" ),
+														QDir::homePath(),
+														QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+		if( targetDir == "" || !QDir( targetDir ).exists() ){
+			return;
+		}
+
+		QString exportingFile = QString( "%1/AppLauncher.profiles" ).arg( targetDir );
+		app::saveSettings( exportingFile );
+		m_pStatusL->setText( tr( "Export profiles completed" ) );
+	} );
+	connect( ui->actionImport_Profiles, &QAction::triggered, this, [this](){
+		auto importFile = QFileDialog::getOpenFileName(this, tr( "Profiles configuration" ),
+														   QDir::homePath(), "Profile files (*.profiles)");
+
+		if( importFile == "" || !QFile( importFile ).exists() ){
+			return;
+		}
+
+//		QString exportingFile = QString( "%1/AppLauncher.profiles" ).arg( targetDir );
+		app::loadSettings( importFile );
+		updateProfiles();
+		m_pStatusL->setText( tr( "Import profiles completed" ) );
+	} );
 
 
 	m_pTimer->setInterval( 500 );

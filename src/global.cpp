@@ -1,7 +1,5 @@
 #include "global.h"
 
-#include <QSettings>
-
 namespace app {
 	Config conf;
 
@@ -33,11 +31,30 @@ namespace app {
 		return;
 	}
 
-	void loadSettings()
+	void loadSettings(const QString &file)
 	{
-		QSettings settings( "MySoft", "AppLauncher" );
 		app::conf.profiles.clear();
 
+		if( !file.isEmpty() ){
+			QSettings settings( file, QSettings::IniFormat );
+			app::loadSettings( settings );
+		}else{
+			QSettings settings( "MySoft", "AppLauncher" );
+			app::loadSettings( settings );
+		}
+
+//		if( settings.allKeys().size() == 0 ){
+//			app::saveSettings();
+//			return;
+//		}
+
+//		app::conf.repository = settings.value("MAIN/repository", app::conf.repository).toString();
+//		app::conf.targetDir = settings.value("MAIN/targetDir", app::conf.targetDir).toString();
+//		app::conf.key = settings.value("MAIN/key", app::conf.key).toString();
+	}
+
+	void loadSettings(QSettings &settings)
+	{
 		QStringList list;
 
 		for( const auto &key:settings.allKeys() ){
@@ -63,23 +80,22 @@ namespace app {
 			app::conf.profiles.push_back( profile );
 			settings.endGroup();
 		}
-
-
-//		if( settings.allKeys().size() == 0 ){
-//			app::saveSettings();
-//			return;
-//		}
-
-//		app::conf.repository = settings.value("MAIN/repository", app::conf.repository).toString();
-//		app::conf.targetDir = settings.value("MAIN/targetDir", app::conf.targetDir).toString();
-//		app::conf.key = settings.value("MAIN/key", app::conf.key).toString();
 	}
 
-	void saveSettings()
+	void saveSettings(const QString &file)
 	{
-		QSettings settings( "MySoft", "AppLauncher" );
-		settings.clear();
+		if( !file.isEmpty() ){
+			QSettings settings( file, QSettings::IniFormat );
+			app::saveSettings( settings );
+		}else{
+			QSettings settings( "MySoft", "AppLauncher" );
+			settings.clear();
+			app::saveSettings( settings );
+		}
+	}
 
+	void saveSettings(QSettings &settings)
+	{
 		for( const auto &profile:app::conf.profiles ){
 			settings.beginGroup( profile.name );
 			settings.setValue( "repository", profile.repo );
@@ -91,9 +107,7 @@ namespace app {
 			settings.endGroup();
 		}
 
-//		settings.setValue("MAIN/repository", app::conf.repository);
-//		settings.setValue("MAIN/targetDir", app::conf.targetDir);
-		//		settings.setValue("MAIN/key", app::conf.key);
+		settings.sync();
 	}
 
 	bool profileExists(const QString &profileName)

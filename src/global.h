@@ -1,6 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include <QSettings>
 #include <QString>
 #include <list>
 
@@ -25,8 +26,10 @@ namespace app {
 
 	bool parsArgs(int argc, char *argv[]);
 	void setLog(const uint8_t logLevel, const QString &mess);
-	void loadSettings();
-	void saveSettings();
+	void loadSettings(const QString &file = "");
+	void loadSettings(QSettings &settings);
+	void saveSettings(const QString &file = "");
+	void saveSettings(QSettings &settings);
 
 	bool profileExists(const QString& profileName);
 	void addProfile(const Profile& profile);
